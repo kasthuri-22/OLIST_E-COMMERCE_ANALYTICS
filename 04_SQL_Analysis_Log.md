@@ -115,3 +115,27 @@ Explain the approach before writing the final query.
 ### SQL
 
 ```sql
+1. REVENUE&SALES
+#analysis 1 :
+
+Business Question
+How much business did the marketplace generate from completed/delivered orders?
+
+Metric
+Delivered Product Sales Value = SUM(order_items.price) for delivered orders.
+
+Result
+13,221,498.11
+
+Validation
+The orders → order_items join did not create duplicate order-item records, and order_id is unique in the orders table.
+
+#analysis 2:
+Finding
+
+Delivered product sales increased substantially as order volume increased. AOV remained relatively stable across the main period, suggesting that growth was driven primarily by an increase in the number of orders rather than a major increase in order value.
+
+Limitation
+
+The earliest months contain very few delivered orders, so their AOV and sales values should not be treated as representative.
+
