@@ -139,3 +139,13 @@ Limitation
 
 The earliest months contain very few delivered orders, so their AOV and sales values should not be treated as representative.
 
++#analysis 3:
+
+
+Finding
+
+The overall delivered-order AOV was approximately 137.04 in product value. Monthly AOV remained relatively stable compared with the much larger changes in order volume.
+
+Business interpretation
+
+Olist's sales growth appears to have been driven more by increasing order volume than by customers substantially increasing their spend per order.
