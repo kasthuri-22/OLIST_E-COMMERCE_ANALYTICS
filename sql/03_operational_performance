@@ -1,0 +1,349 @@
+-- OLIST E-COMMERCE ANALYTICS
+-- OPERATIONAL PERFORMANCE ANALYSIS
+-- Purpose: Understand processing, delivery, seller, geographic,
+-- cancellation and operational problem patterns.
+
+USE ecommerce_analytics;
+
+-- ============================================================
+-- Q1. How long does it take to process and deliver orders?
+-- ============================================================
+
+SELECT
+    ROUND(
+        AVG(
+            DATEDIFF(
+                order_delivered_carrier_date,
+                order_purchase_timestamp
+            )
+        ),
+        2
+    ) AS avg_processing_days,
+
+    ROUND(
+        AVG(
+            DATEDIFF(
+                order_delivered_customer_date,
+                order_delivered_carrier_date
+            )
+        ),
+        2
+    ) AS avg_shipping_days,
+
+    ROUND(
+        AVG(
+            DATEDIFF(
+                order_delivered_customer_date,
+                order_purchase_timestamp
+            )
+        ),
+        2
+    ) AS avg_total_delivery_days
+FROM raw_orders
+WHERE order_status = 'delivered'
+  AND order_purchase_timestamp IS NOT NULL
+  AND order_delivered_carrier_date IS NOT NULL
+  AND order_delivered_customer_date IS NOT NULL;
+
+-- Finding:
+-- Average processing time: 3.21 days
+-- Average carrier-to-customer delivery time: 9.28 days
+-- Average total delivery time: 12.50 days
+--
+-- Interpretation:
+-- The carrier-to-customer stage takes substantially longer than
+-- the initial processing stage.
+
+
+-- ============================================================
+-- Q2. How often are orders delivered late?
+-- ============================================================
+
+SELECT
+    COUNT(DISTINCT order_id) AS delivered_orders,
+
+    COUNT(DISTINCT CASE
+        WHEN order_delivered_customer_date >
+             order_estimated_delivery_date
+        THEN order_id
+    END) AS late_orders,
+
+    ROUND(
+        COUNT(DISTINCT CASE
+            WHEN order_delivered_customer_date >
+                 order_estimated_delivery_date
+            THEN order_id
+        END) * 100.0
+        / COUNT(DISTINCT order_id),
+        2
+    ) AS late_delivery_percentage
+
+FROM raw_orders
+WHERE order_status = 'delivered'
+  AND order_delivered_customer_date IS NOT NULL
+  AND order_estimated_delivery_date IS NOT NULL;
+
+-- Finding:
+-- Delivered orders with complete date information: 96,470
+-- Late orders: 7,826
+-- Late-delivery rate: 8.11%
+--
+-- Interpretation:
+-- Roughly 8 out of every 100 delivered orders missed the
+-- estimated delivery date.
+
+
+-- ============================================================
+-- Q3. How does delivery performance vary by seller?
+-- ============================================================
+-- Important: order_items can contain multiple rows per order.
+-- Therefore, late orders must be counted with COUNT(DISTINCT order_id)
+-- to avoid counting item rows as separate orders.
+
+SELECT
+    oi.seller_id,
+
+    COUNT(DISTINCT o.order_id) AS delivered_orders,
+
+    COUNT(DISTINCT CASE
+        WHEN o.order_delivered_customer_date >
+             o.order_estimated_delivery_date
+        THEN o.order_id
+    END) AS late_orders,
+
+    ROUND(
+        COUNT(DISTINCT CASE
+            WHEN o.order_delivered_customer_date >
+                 o.order_estimated_delivery_date
+            THEN o.order_id
+        END) * 100.0
+        / COUNT(DISTINCT o.order_id),
+        2
+    ) AS late_delivery_percentage,
+
+    ROUND(
+        AVG(
+            DATEDIFF(
+                o.order_delivered_customer_date,
+                o.order_purchase_timestamp
+            )
+        ),
+        2
+    ) AS avg_delivery_days
+
+FROM raw_orders o
+JOIN raw_order_items oi
+    ON o.order_id = oi.order_id
+
+WHERE o.order_status = 'delivered'
+  AND o.order_delivered_customer_date IS NOT NULL
+  AND o.order_estimated_delivery_date IS NOT NULL
+
+GROUP BY oi.seller_id
+
+HAVING COUNT(DISTINCT o.order_id) >= 100
+
+ORDER BY late_delivery_percentage DESC;
+
+-- Finding:
+-- Seller performance varies, but sellers with very small order
+-- volumes can produce misleadingly high percentages.
+-- A minimum volume threshold of 100 delivered orders was used
+-- before comparing sellers.
+--
+-- Important SQL lesson:
+-- When joining orders to order_items, use DISTINCT order_id
+-- for order-level metrics.
+
+
+-- ============================================================
+-- Q4. How does delivery performance vary by geography?
+-- ============================================================
+
+SELECT
+    c.customer_state,
+
+    COUNT(DISTINCT o.order_id) AS delivered_orders,
+
+    COUNT(DISTINCT CASE
+        WHEN o.order_delivered_customer_date >
+             o.order_estimated_delivery_date
+        THEN o.order_id
+    END) AS late_orders,
+
+    ROUND(
+        COUNT(DISTINCT CASE
+            WHEN o.order_delivered_customer_date >
+                 o.order_estimated_delivery_date
+            THEN o.order_id
+        END) * 100.0
+        / COUNT(DISTINCT o.order_id),
+        2
+    ) AS late_delivery_percentage,
+
+    ROUND(
+        AVG(
+            DATEDIFF(
+                o.order_delivered_customer_date,
+                o.order_purchase_timestamp
+            )
+        ),
+        2
+    ) AS avg_delivery_days
+
+FROM raw_orders o
+JOIN raw_customers c
+    ON o.customer_id = c.customer_id
+
+WHERE o.order_status = 'delivered'
+  AND o.order_delivered_customer_date IS NOT NULL
+  AND o.order_estimated_delivery_date IS NOT NULL
+
+GROUP BY c.customer_state
+
+HAVING COUNT(DISTINCT o.order_id) >= 100
+
+ORDER BY late_delivery_percentage DESC;
+
+-- Findings:
+-- AL: 23.93% late
+-- MA: 19.67%
+-- PI: 15.97%
+-- CE: 15.32%
+-- BA: 14.04%
+-- RJ: 13.47%
+-- ...
+-- SP: 5.89%
+-- MG: 5.61%
+-- PR: 5.00%
+--
+-- Interpretation:
+-- Delivery reliability varies considerably by geography.
+-- Smaller states can show high percentages with relatively few
+-- orders, so both rate and order volume should be considered.
+
+
+-- ============================================================
+-- Q5. What patterns exist in cancellations and unavailable orders?
+-- ============================================================
+
+SELECT
+    order_status,
+    COUNT(DISTINCT order_id) AS orders
+FROM raw_orders
+GROUP BY order_status
+ORDER BY orders DESC;
+
+-- Finding:
+-- Delivered   : 96,478
+-- Shipped     : 1,107
+-- Canceled    : 625
+-- Unavailable : 609
+-- Invoiced    : 314
+-- Processing  : 301
+-- Created     : 5
+-- Approved    : 2
+
+
+SELECT
+    order_status,
+    COUNT(DISTINCT order_id) AS orders,
+
+    ROUND(
+        COUNT(DISTINCT order_id) * 100.0 /
+        (SELECT COUNT(DISTINCT order_id)
+         FROM raw_orders),
+        2
+    ) AS percentage_of_orders
+
+FROM raw_orders
+WHERE order_status IN ('canceled', 'unavailable')
+GROUP BY order_status
+ORDER BY orders DESC;
+
+-- Finding:
+-- Canceled    : 625 orders = 0.63%
+-- Unavailable : 609 orders = 0.61%
+-- Combined    : 1,234 orders = 1.24%
+--
+-- Interpretation:
+-- Both issues are relatively small compared with total order volume,
+-- and neither problem clearly dominates the other.
+
+
+-- ============================================================
+-- Q6. Where are the major operational problems concentrated?
+-- ============================================================
+-- Aggregate first and join later to avoid an expensive correlated
+-- subquery on the raw tables.
+
+WITH state_total AS (
+    SELECT
+        c.customer_state,
+        COUNT(DISTINCT o.order_id) AS total_orders
+    FROM raw_orders o
+    JOIN raw_customers c
+        ON o.customer_id = c.customer_id
+    GROUP BY c.customer_state
+),
+
+state_problem AS (
+    SELECT
+        c.customer_state,
+        COUNT(DISTINCT o.order_id) AS problematic_orders
+    FROM raw_orders o
+    JOIN raw_customers c
+        ON o.customer_id = c.customer_id
+    WHERE o.order_status IN ('canceled', 'unavailable')
+    GROUP BY c.customer_state
+)
+
+SELECT
+    st.customer_state,
+    st.total_orders,
+    COALESCE(sp.problematic_orders, 0) AS problematic_orders,
+
+    ROUND(
+        COALESCE(sp.problematic_orders, 0) * 100.0
+        / st.total_orders,
+        2
+    ) AS problem_rate
+
+FROM state_total st
+
+LEFT JOIN state_problem sp
+    ON st.customer_state = sp.customer_state
+
+ORDER BY problem_rate DESC;
+
+-- Findings:
+-- RO: 253 total orders, 7 problematic, 2.77%
+-- RR: 46 total orders, 1 problematic, 2.17%
+-- SP: 41,746 total orders, 619 problematic, 1.48%
+-- MA: 747 total orders, 11 problematic, 1.47%
+-- ...
+--
+-- Interpretation:
+-- Smaller states can have the highest problem rates, but high-volume
+-- states create the largest absolute operational impact.
+-- SP is the clearest example: its 1.48% problem rate is not the
+-- highest, but it has 619 problematic orders because of its huge
+-- order volume.
+
+
+-- ============================================================
+-- KEY OPERATIONAL PERFORMANCE FINDINGS
+-- ============================================================
+-- 1. Average total delivery time was 12.50 days.
+-- 2. Processing accounted for 3.21 days, while carrier-to-customer
+--    delivery accounted for 9.28 days.
+-- 3. 8.11% of delivered orders were late.
+-- 4. Seller delivery rates must be interpreted with order volume.
+-- 5. Delivery reliability varies substantially across states.
+-- 6. Canceled + unavailable orders represented 1.24% of all orders.
+-- 7. High-volume states such as SP, RJ and MG have the largest
+--    absolute number of problematic orders.
+--
+-- Core analytical lesson:
+-- Rate measures severity; volume measures operational impact.
+-- Both should be considered when identifying priorities.
