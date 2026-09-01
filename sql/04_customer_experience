@@ -23,19 +23,17 @@ GROUP BY review_score
 ORDER BY review_score;
 ```
 
-### Result
+### Key Finding
 
-| Review Score | Review Count |
-| -----------: | -----------: |
-|            1 |       11,424 |
-|            2 |        3,151 |
-|            3 |        8,179 |
-|            4 |       19,142 |
-|            5 |       57,328 |
+Customer reviews are heavily concentrated at the higher end of the rating scale.
 
-### Finding
+* **5-star:** 57,328 reviews
+* **4-star:** 19,142 reviews
+* **1-star:** 11,424 reviews
+* **3-star:** 8,179 reviews
+* **2-star:** 3,151 reviews
 
-5-star reviews dominate the review distribution, while 2-star reviews are the least common. Overall, customer feedback is skewed toward positive ratings.
+The largest group is **5-star reviews**, indicating that highly positive reviews form a substantial portion of the customer feedback.
 
 ---
 
@@ -61,24 +59,29 @@ HAVING COUNT(*) >= 100
 ORDER BY avg_rating DESC;
 ```
 
-### Key Results
+### Key Finding
 
-| Category                | Avg Rating |   Reviews |
-| ----------------------- | ---------: | --------: |
-| livros_interesse_geral  |       4.45 |       549 |
-| livros_tecnicos         |       4.37 |       266 |
-| malas_acessorios        |       4.32 |     1,088 |
-| alimentos_bebidas       |       4.32 |       279 |
-| ...                     |        ... |       ... |
-| telefonia_fixa          |       3.68 |       262 |
-| fashion_roupa_masculina |       3.64 |       131 |
-| moveis_escritorio       |   **3.49** | **1,687** |
+Average ratings vary considerably across product categories.
 
-### Finding
+**Highest-rated categories:**
 
-Category satisfaction varies considerably. `livros_interesse_geral` has the highest average rating at **4.45**, while `moveis_escritorio` has the lowest at **3.49** among categories with at least 100 reviews.
+| Category               | Avg Rating | Reviews |
+| ---------------------- | ---------: | ------: |
+| livros_interesse_geral |       4.45 |     549 |
+| livros_tecnicos        |       4.37 |     266 |
+| malas_acessorios       |       4.32 |   1,088 |
+| alimentos_bebidas      |       4.32 |     279 |
 
-The low rating for `moveis_escritorio` is particularly notable because it is supported by **1,687 reviews**, making it more meaningful than a low rating based on a very small sample.
+**Lowest-rated categories:**
+
+| Category                | Avg Rating | Reviews |
+| ----------------------- | ---------: | ------: |
+| moveis_escritorio       |       3.49 |   1,687 |
+| fashion_roupa_masculina |       3.64 |     131 |
+| telefonia_fixa          |       3.68 |     262 |
+| audio                   |       3.83 |     361 |
+
+The most notable concern is **moveis_escritorio**, which has the lowest average rating among the categories shown while also having a substantial **1,687 reviews**, making the finding more meaningful than a low rating based on only a small number of reviews.
 
 ---
 
@@ -101,30 +104,24 @@ HAVING COUNT(*) >= 100
 ORDER BY avg_rating DESC;
 ```
 
-### Key Results
+### Key Finding
 
-**Highest-rated sellers:**
+Seller performance varies substantially.
 
-| Seller ID                        | Avg Rating | Reviews |
-| -------------------------------- | ---------: | ------: |
-| 289cdb325fb7e7f891c38608bf9e0962 |       4.58 |     126 |
-| ac3508719a1d8f5b7614b798f70af136 |       4.57 |     102 |
-| 12b9676b00f60f3b700e83af21824c0e |       4.51 |     135 |
-| c3cfdc648177fdbbbb35635a37472c53 |       4.45 |     313 |
+The observed seller ratings ranged from:
 
-**Lowest-rated sellers:**
+* **Highest:** 4.58
+* **Lowest:** 2.20
+
+Examples of low-rated sellers with meaningful review volume include:
 
 | Seller ID                        | Avg Rating | Reviews |
 | -------------------------------- | ---------: | ------: |
-| 8444e55c1f13cd5c179851e5ca5ebd00 |       3.07 |     109 |
-| 8e6d7754bc7e0f22c96d255ebda59eba |       3.02 |     133 |
-| a49928bcdf77c55c6d6e05e09a9b4ca5 |       2.95 |     106 |
+| 1ca7077d890b907f89be8c954a02686a |       2.20 |     136 |
 | 2eb70248d66e0e3ef83659f71b244378 |       2.71 |     209 |
-| 1ca7077d890b907f89be8c954a02686a |   **2.20** | **136** |
+| 7c67e1448b00f6e969d365cea6b010ab |       3.35 |   1,367 |
 
-### Finding
-
-Seller ratings vary substantially, ranging from **4.58 to 2.20** among sellers with at least 100 reviews. Some poorly rated sellers also have meaningful review volumes, suggesting that seller-level performance is an important area for further investigation.
+This indicates that customer experience is not uniform across sellers and that some sellers may require deeper operational investigation.
 
 ---
 
@@ -159,14 +156,18 @@ GROUP BY delivery_status;
 
 ### Result
 
-| Delivery Status | Orders | Avg Review Score |
-| --------------- | -----: | ---------------: |
-| On-time         | 88,653 |         **4.29** |
-| Late            |  7,700 |         **2.57** |
+| Delivery Status | Orders | Avg Review |
+| --------------- | -----: | ---------: |
+| On-time         | 88,653 |       4.29 |
+| Late            |  7,700 |       2.57 |
 
-### Finding
+### Key Finding
 
-Late deliveries are strongly associated with lower customer satisfaction. On-time orders received an average rating of **4.29**, compared with only **2.57** for late orders — a difference of **1.72 rating points**.
+Late deliveries are strongly associated with lower customer satisfaction.
+
+On-time orders received an average rating of **4.29**, compared with only **2.57** for late orders — a difference of **1.72 rating points**.
+
+This suggests that delivery reliability is an important factor to investigate when improving customer experience.
 
 ---
 
@@ -179,51 +180,41 @@ SELECT
     c.customer_state,
     COUNT(DISTINCT o.order_id) AS orders,
     ROUND(AVG(r.review_score), 2) AS avg_review_score
-
 FROM raw_customers c
-
 JOIN raw_orders o
     ON c.customer_id = o.customer_id
-
 JOIN raw_order_reviews r
     ON o.order_id = r.order_id
-
 WHERE o.order_status = 'delivered'
-
 GROUP BY c.customer_state
-
 HAVING COUNT(DISTINCT o.order_id) >= 100
-
 ORDER BY avg_review_score DESC;
 ```
 
-### Key Results
+### Key Finding
 
-| State | Orders | Avg Review |
-| ----- | -----: | ---------: |
-| SP    | 40,273 |   **4.25** |
-| PR    |  4,900 |       4.24 |
-| MG    | 11,285 |       4.19 |
-| RS    |  5,327 |       4.19 |
-| RJ    | 12,211 |       3.96 |
-| CE    |  1,273 |       3.94 |
-| BA    |  3,229 |       3.93 |
-| PA    |    933 |       3.91 |
-| SE    |    334 |       3.91 |
-| AL    |    394 |       3.84 |
-| MA    |    712 |   **3.84** |
+Customer satisfaction varies across Brazilian states.
 
-### Finding
+**Highest observed:**
 
-Customer experience varies geographically. Average ratings range from **4.25 in SP** to **3.84 in MA**.
+* SP → **4.25**
+* PR → **4.24**
+* AM → **4.22**
 
-High-volume states such as **RJ**, with more than 12,000 orders, also show relatively lower satisfaction. This suggests that geographic differences may warrant further investigation into delivery and seller performance.
+**Lowest observed:**
+
+* MA → **3.84**
+* AL → **3.84**
+* SE → **3.91**
+* PA → **3.91**
+
+High-volume states such as **RJ** also show relatively lower satisfaction at **3.96**, despite having more than 12,000 delivered orders.
+
+This suggests that geographic differences may warrant further investigation into delivery performance, seller distribution, and other operational factors.
 
 ---
 
 ## Q6. What are the major patterns associated with poor customer experience?
-
-Poor customer experience is defined as a **1–2 star review**.
 
 ### SQL Query
 
@@ -269,28 +260,32 @@ GROUP BY delivery_status;
 
 ### Result
 
-| Delivery Status | Orders | Poor Reviews | Poor Review % |
-| --------------- | -----: | -----------: | ------------: |
-| On-time         | 88,653 |        8,186 |     **9.23%** |
-| Late            |  7,700 |        4,160 |    **54.03%** |
+| Delivery Status | Orders | Poor Reviews (1–2⭐) | Poor Review Rate |
+| --------------- | -----: | ------------------: | ---------------: |
+| On-time         | 88,653 |               8,186 |            9.23% |
+| Late            |  7,700 |               4,160 |           54.03% |
 
-### Finding
+### Key Finding
 
-Late delivery is strongly associated with poor customer experience. **54.03% of late-delivery orders received 1–2 star reviews**, compared with only **9.23% of on-time orders**.
+Late delivery is strongly associated with poor customer experience.
 
-This means the poor-review rate for late orders is approximately **5.9× higher** than for on-time orders.
+**54.03% of late-delivery orders received 1–2 star reviews**, compared with only **9.23% of on-time orders**.
+
+The poor-review rate for late orders is approximately **5.9× higher** than for on-time orders.
+
+This reinforces delivery reliability as a major operational factor associated with customer dissatisfaction.
 
 ---
 
-## Key Customer Experience Insights
+## Overall Customer Experience Insights
 
 1. **5-star reviews dominate** the overall review distribution.
-2. **Category satisfaction varies significantly**, with `moveis_escritorio` showing a particularly low rating despite substantial review volume.
-3. **Seller performance varies widely**, with ratings ranging from 4.58 to 2.20 among sellers with at least 100 reviews.
-4. **Late delivery is strongly associated with lower ratings** — 2.57 vs 4.29 for on-time orders.
-5. **Customer experience differs geographically**, with some high-volume states showing relatively lower ratings.
-6. **Late delivery is the strongest observed operational signal of poor customer experience**, with 54.03% of late orders receiving 1–2 star reviews versus 9.23% for on-time orders.
+2. Customer satisfaction **varies significantly across product categories and sellers**.
+3. Some low-rated categories and sellers have substantial review volumes, making them stronger candidates for investigation.
+4. **Late deliveries are strongly associated with lower review scores.**
+5. Customer experience also varies geographically, with some high-volume states showing comparatively lower ratings.
+6. The strongest observed pattern is the relationship between **late delivery and poor reviews**: 54.03% of late orders received 1–2 stars compared with 9.23% of on-time orders.
 
 ### Business Implication
 
-Improving delivery reliability should be a priority for customer-experience improvement. High-risk sellers, low-rated categories, and lower-performing geographic regions can then be investigated further to identify the underlying operational causes.
+Improving delivery reliability and investigating consistently low-performing sellers and categories could be important areas for improving customer experience.
