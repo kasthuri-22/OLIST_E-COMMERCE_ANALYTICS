@@ -1,0 +1,296 @@
+# Customer Experience
+
+## Objective
+
+Understand customer satisfaction and identify the operational and geographic factors associated with poor customer experience.
+
+---
+
+## Q1. What does the overall review distribution look like?
+
+### SQL Query
+
+```sql
+SELECT
+    review_score,
+    COUNT(*) AS review_count,
+    ROUND(
+        COUNT(*) * 100.0 / SUM(COUNT(*)) OVER (),
+        2
+    ) AS review_percentage
+FROM raw_order_reviews
+GROUP BY review_score
+ORDER BY review_score;
+```
+
+### Result
+
+| Review Score | Review Count |
+| -----------: | -----------: |
+|            1 |       11,424 |
+|            2 |        3,151 |
+|            3 |        8,179 |
+|            4 |       19,142 |
+|            5 |       57,328 |
+
+### Finding
+
+5-star reviews dominate the review distribution, while 2-star reviews are the least common. Overall, customer feedback is skewed toward positive ratings.
+
+---
+
+## Q2. Which product categories receive the highest and lowest ratings?
+
+### SQL Query
+
+```sql
+SELECT
+    p.product_category_name AS category,
+    ROUND(AVG(r.review_score), 2) AS avg_rating,
+    COUNT(*) AS review_count
+FROM raw_order_reviews r
+JOIN raw_orders o
+    ON r.order_id = o.order_id
+JOIN raw_order_items oi
+    ON o.order_id = oi.order_id
+JOIN raw_products p
+    ON oi.product_id = p.product_id
+WHERE p.product_category_name IS NOT NULL
+GROUP BY p.product_category_name
+HAVING COUNT(*) >= 100
+ORDER BY avg_rating DESC;
+```
+
+### Key Results
+
+| Category                | Avg Rating |   Reviews |
+| ----------------------- | ---------: | --------: |
+| livros_interesse_geral  |       4.45 |       549 |
+| livros_tecnicos         |       4.37 |       266 |
+| malas_acessorios        |       4.32 |     1,088 |
+| alimentos_bebidas       |       4.32 |       279 |
+| ...                     |        ... |       ... |
+| telefonia_fixa          |       3.68 |       262 |
+| fashion_roupa_masculina |       3.64 |       131 |
+| moveis_escritorio       |   **3.49** | **1,687** |
+
+### Finding
+
+Category satisfaction varies considerably. `livros_interesse_geral` has the highest average rating at **4.45**, while `moveis_escritorio` has the lowest at **3.49** among categories with at least 100 reviews.
+
+The low rating for `moveis_escritorio` is particularly notable because it is supported by **1,687 reviews**, making it more meaningful than a low rating based on a very small sample.
+
+---
+
+## Q3. Which sellers receive the highest and lowest ratings?
+
+### SQL Query
+
+```sql
+SELECT
+    oi.seller_id,
+    ROUND(AVG(r.review_score), 2) AS avg_rating,
+    COUNT(*) AS review_count
+FROM raw_order_reviews r
+JOIN raw_orders o
+    ON r.order_id = o.order_id
+JOIN raw_order_items oi
+    ON o.order_id = oi.order_id
+GROUP BY oi.seller_id
+HAVING COUNT(*) >= 100
+ORDER BY avg_rating DESC;
+```
+
+### Key Results
+
+**Highest-rated sellers:**
+
+| Seller ID                        | Avg Rating | Reviews |
+| -------------------------------- | ---------: | ------: |
+| 289cdb325fb7e7f891c38608bf9e0962 |       4.58 |     126 |
+| ac3508719a1d8f5b7614b798f70af136 |       4.57 |     102 |
+| 12b9676b00f60f3b700e83af21824c0e |       4.51 |     135 |
+| c3cfdc648177fdbbbb35635a37472c53 |       4.45 |     313 |
+
+**Lowest-rated sellers:**
+
+| Seller ID                        | Avg Rating | Reviews |
+| -------------------------------- | ---------: | ------: |
+| 8444e55c1f13cd5c179851e5ca5ebd00 |       3.07 |     109 |
+| 8e6d7754bc7e0f22c96d255ebda59eba |       3.02 |     133 |
+| a49928bcdf77c55c6d6e05e09a9b4ca5 |       2.95 |     106 |
+| 2eb70248d66e0e3ef83659f71b244378 |       2.71 |     209 |
+| 1ca7077d890b907f89be8c954a02686a |   **2.20** | **136** |
+
+### Finding
+
+Seller ratings vary substantially, ranging from **4.58 to 2.20** among sellers with at least 100 reviews. Some poorly rated sellers also have meaningful review volumes, suggesting that seller-level performance is an important area for further investigation.
+
+---
+
+## Q4. Does delivery performance relate to customer review scores?
+
+### SQL Query
+
+```sql
+SELECT
+    CASE
+        WHEN o.order_delivered_customer_date >
+             o.order_estimated_delivery_date
+        THEN 'Late'
+        ELSE 'On-time'
+    END AS delivery_status,
+
+    COUNT(*) AS orders,
+
+    ROUND(AVG(r.review_score), 2) AS avg_review_score
+
+FROM raw_orders o
+
+JOIN raw_order_reviews r
+    ON o.order_id = r.order_id
+
+WHERE o.order_status = 'delivered'
+  AND o.order_delivered_customer_date IS NOT NULL
+  AND o.order_estimated_delivery_date IS NOT NULL
+
+GROUP BY delivery_status;
+```
+
+### Result
+
+| Delivery Status | Orders | Avg Review Score |
+| --------------- | -----: | ---------------: |
+| On-time         | 88,653 |         **4.29** |
+| Late            |  7,700 |         **2.57** |
+
+### Finding
+
+Late deliveries are strongly associated with lower customer satisfaction. On-time orders received an average rating of **4.29**, compared with only **2.57** for late orders — a difference of **1.72 rating points**.
+
+---
+
+## Q5. How does customer experience vary geographically?
+
+### SQL Query
+
+```sql
+SELECT
+    c.customer_state,
+    COUNT(DISTINCT o.order_id) AS orders,
+    ROUND(AVG(r.review_score), 2) AS avg_review_score
+
+FROM raw_customers c
+
+JOIN raw_orders o
+    ON c.customer_id = o.customer_id
+
+JOIN raw_order_reviews r
+    ON o.order_id = r.order_id
+
+WHERE o.order_status = 'delivered'
+
+GROUP BY c.customer_state
+
+HAVING COUNT(DISTINCT o.order_id) >= 100
+
+ORDER BY avg_review_score DESC;
+```
+
+### Key Results
+
+| State | Orders | Avg Review |
+| ----- | -----: | ---------: |
+| SP    | 40,273 |   **4.25** |
+| PR    |  4,900 |       4.24 |
+| MG    | 11,285 |       4.19 |
+| RS    |  5,327 |       4.19 |
+| RJ    | 12,211 |       3.96 |
+| CE    |  1,273 |       3.94 |
+| BA    |  3,229 |       3.93 |
+| PA    |    933 |       3.91 |
+| SE    |    334 |       3.91 |
+| AL    |    394 |       3.84 |
+| MA    |    712 |   **3.84** |
+
+### Finding
+
+Customer experience varies geographically. Average ratings range from **4.25 in SP** to **3.84 in MA**.
+
+High-volume states such as **RJ**, with more than 12,000 orders, also show relatively lower satisfaction. This suggests that geographic differences may warrant further investigation into delivery and seller performance.
+
+---
+
+## Q6. What are the major patterns associated with poor customer experience?
+
+Poor customer experience is defined as a **1–2 star review**.
+
+### SQL Query
+
+```sql
+SELECT
+    CASE
+        WHEN o.order_delivered_customer_date >
+             o.order_estimated_delivery_date
+        THEN 'Late'
+        ELSE 'On-time'
+    END AS delivery_status,
+
+    COUNT(*) AS orders,
+
+    SUM(
+        CASE
+            WHEN r.review_score IN (1, 2) THEN 1
+            ELSE 0
+        END
+    ) AS poor_reviews,
+
+    ROUND(
+        SUM(
+            CASE
+                WHEN r.review_score IN (1, 2) THEN 1
+                ELSE 0
+            END
+        ) * 100.0 / COUNT(*),
+        2
+    ) AS poor_review_percentage
+
+FROM raw_orders o
+
+JOIN raw_order_reviews r
+    ON o.order_id = r.order_id
+
+WHERE o.order_status = 'delivered'
+  AND o.order_delivered_customer_date IS NOT NULL
+  AND o.order_estimated_delivery_date IS NOT NULL
+
+GROUP BY delivery_status;
+```
+
+### Result
+
+| Delivery Status | Orders | Poor Reviews | Poor Review % |
+| --------------- | -----: | -----------: | ------------: |
+| On-time         | 88,653 |        8,186 |     **9.23%** |
+| Late            |  7,700 |        4,160 |    **54.03%** |
+
+### Finding
+
+Late delivery is strongly associated with poor customer experience. **54.03% of late-delivery orders received 1–2 star reviews**, compared with only **9.23% of on-time orders**.
+
+This means the poor-review rate for late orders is approximately **5.9× higher** than for on-time orders.
+
+---
+
+## Key Customer Experience Insights
+
+1. **5-star reviews dominate** the overall review distribution.
+2. **Category satisfaction varies significantly**, with `moveis_escritorio` showing a particularly low rating despite substantial review volume.
+3. **Seller performance varies widely**, with ratings ranging from 4.58 to 2.20 among sellers with at least 100 reviews.
+4. **Late delivery is strongly associated with lower ratings** — 2.57 vs 4.29 for on-time orders.
+5. **Customer experience differs geographically**, with some high-volume states showing relatively lower ratings.
+6. **Late delivery is the strongest observed operational signal of poor customer experience**, with 54.03% of late orders receiving 1–2 star reviews versus 9.23% for on-time orders.
+
+### Business Implication
+
+Improving delivery reliability should be a priority for customer-experience improvement. High-risk sellers, low-rated categories, and lower-performing geographic regions can then be investigated further to identify the underlying operational causes.
