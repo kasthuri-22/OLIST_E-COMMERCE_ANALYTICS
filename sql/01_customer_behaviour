@@ -1,0 +1,153 @@
+-- OLIST E-COMMERCE ANALYTICS
+-- CUSTOMER BEHAVIOUR ANALYSIS
+-- Purpose: Understand customer frequency, spending and value.
+
+USE ecommerce_analytics;
+
+-- ============================================================
+-- Q1. How many unique customers have purchased?
+-- ============================================================
+
+SELECT
+    COUNT(DISTINCT c.customer_unique_id) AS unique_customers
+FROM raw_orders o
+JOIN raw_customers c
+    ON o.customer_id = c.customer_id
+WHERE o.order_status = 'delivered';
+
+-- Finding:
+-- 93,358 unique customers had at least one delivered order.
+
+
+-- ============================================================
+-- Q2. What proportion of customers are one-time vs repeat?
+-- ============================================================
+
+WITH customer_orders AS (
+    SELECT
+        c.customer_unique_id,
+        COUNT(DISTINCT o.order_id) AS order_count
+    FROM raw_orders o
+    JOIN raw_customers c
+        ON o.customer_id = c.customer_id
+    WHERE o.order_status = 'delivered'
+    GROUP BY c.customer_unique_id
+)
+SELECT
+    CASE
+        WHEN order_count = 1 THEN 'One-time'
+        ELSE 'Repeat'
+    END AS customer_type,
+    COUNT(*) AS customers
+FROM customer_orders
+GROUP BY
+    CASE
+        WHEN order_count = 1 THEN 'One-time'
+        ELSE 'Repeat'
+    END;
+
+-- Finding:
+-- One-time customers: 90,557
+-- Repeat customers: 2,801
+-- The customer base is heavily dominated by one-time purchasers.
+
+
+-- ============================================================
+-- Q3. How frequently do customers purchase?
+-- ============================================================
+
+WITH customer_orders AS (
+    SELECT
+        c.customer_unique_id,
+        COUNT(DISTINCT o.order_id) AS order_count
+    FROM raw_orders o
+    JOIN raw_customers c
+        ON o.customer_id = c.customer_id
+    WHERE o.order_status = 'delivered'
+    GROUP BY c.customer_unique_id
+)
+SELECT
+    order_count,
+    COUNT(*) AS customers
+FROM customer_orders
+GROUP BY order_count
+ORDER BY order_count;
+
+-- Finding:
+-- Purchase frequency is strongly concentrated at one order.
+-- Distribution observed:
+-- 1 order  = 90,557 customers
+-- 2 orders = 2,573
+-- 3 orders = 181
+-- 4 orders = 28
+-- 5 orders = 9
+-- 6 orders = 5
+-- 7 orders = 3
+-- 9 orders = 1
+-- 15 orders = 1
+--
+-- Average purchase frequency: 1.03 orders per customer.
+
+
+-- ============================================================
+-- Q4. How much do customers spend?
+-- ============================================================
+
+SELECT
+    ROUND(
+        SUM(oi.price) / COUNT(DISTINCT c.customer_unique_id),
+        2
+    ) AS average_customer_spend
+FROM raw_orders o
+JOIN raw_customers c
+    ON o.customer_id = c.customer_id
+JOIN raw_order_items oi
+    ON o.order_id = oi.order_id
+WHERE o.order_status = 'delivered';
+
+-- Finding:
+-- Average customer spend was 141.62.
+-- Customer spending is highly uneven, so the average should be
+-- interpreted together with customer frequency and value segments.
+
+
+-- ============================================================
+-- Q5. Which customers and customer segments are economically valuable?
+-- ============================================================
+-- Customer-level analysis should combine purchase frequency and
+-- spending rather than looking at sales alone.
+--
+-- In the analysis, customer segments included:
+-- Other         : 49,345
+-- Loyal         : 20,673
+-- High Spenders : 20,673
+-- High Value    : 2,667
+--
+-- Finding:
+-- The High Value segment is much smaller than the broader segments,
+-- indicating that economically valuable customers are concentrated
+-- in a relatively small group.
+
+
+-- ============================================================
+-- Q6. What products/categories do different customer groups prefer?
+-- ============================================================
+-- The detailed category-by-customer-type query was attempted, but
+-- the raw-table joins repeatedly exceeded the available MySQL
+-- resources and timed out.
+--
+-- Therefore, no final category-preference finding is recorded here.
+-- This is intentionally left documented rather than presenting
+-- an unverified result.
+
+
+-- ============================================================
+-- KEY CUSTOMER BEHAVIOUR FINDINGS
+-- ============================================================
+-- 1. 93,358 customers had delivered purchases.
+-- 2. 90,557 customers were one-time purchasers, versus 2,801 repeat.
+-- 3. Average purchase frequency was only 1.03 orders/customer.
+-- 4. Average customer spend was 141.62.
+-- 5. The customer base is strongly skewed toward one-time buyers.
+-- 6. A relatively small High Value segment represents economically
+--    valuable customers.
