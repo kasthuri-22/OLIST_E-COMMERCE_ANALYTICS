@@ -148,9 +148,7 @@ valuable customers who become inactive.
 1. What percentage of customers make repeat purchases?
 2. How long does it take customers to make another purchase?
 3. How does retention differ between customer cohorts?
-4. Which customer groups have stronger or weaker retention?
-5. Which valuable customers have become inactive?
-6. What customer characteristics are associated with retention or churn?
+
 
 ### Deeper Investigation
 
