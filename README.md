@@ -30,18 +30,16 @@ SQL and Power BI analysis of the Brazilian Olist e-commerce dataset to understan
 
 <!-- Add Overview dashboard screenshot here -->
 
-![Executive Overview](dashboard/overview.png)
+<img width="1366" height="768" alt="Executive Overview" src="https://github.com/user-attachments/assets/f9247f47-3f6d-4000-ab54-9cd56cbe6776" />
 
 ### Customers & Retention
 
-<!-- Add Customers dashboard screenshot here -->
+<img width="698" height="391" alt="Customer   Retention" src="https://github.com/user-attachments/assets/c9ac66c5-4a53-4cd9-84f1-69e5b5c083fe" />
 
 ![Customers & Retention](dashboard/customers.png)
 
 ### Operations & Experience
 
-<img width="1366" height="768" alt="Executive Overview" src="https://github.com/user-attachments/assets/f9247f47-3f6d-4000-ab54-9cd56cbe6776" />
-<img width="698" height="391" alt="Customer   Retention" src="https://github.com/user-attachments/assets/c9ac66c5-4a53-4cd9-84f1-69e5b5c083fe" />
 <img width="1366" height="768" alt="Operations   Experience" src="https://github.com/user-attachments/assets/7abed8e4-8429-498b-b68d-bddbacac8c47" />
 
 
